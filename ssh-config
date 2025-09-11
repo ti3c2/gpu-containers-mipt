@@ -1,0 +1,11 @@
+# ~/.ssh/config
+Host mipt_agents_lab
+  HostName
+  User user
+
+Host teamA
+  HostName 127.0.0.1
+  Port 2222
+  User dev
+  ProxyJump gpu-host
+  HostKeyAlias teamA
