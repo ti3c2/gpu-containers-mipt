@@ -1,0 +1,2 @@
+# MIPT GPU Server Config
+
