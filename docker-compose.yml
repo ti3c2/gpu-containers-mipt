@@ -41,8 +41,10 @@ services:
       - /data/teams/${TEAM:-teamA}/cache/pip:/cache/pip:rw
       - /data/teams/${TEAM:-teamA}/cache/uv:/cache/uv:rw
       - /data/teams/${TEAM:-teamA}/cache/poetry:/cache/poetry:rw
-      - /data/teams/${TEAM:-teamA}/cache/hf:/cache/hf:rw
       - /data/teams/${TEAM:-teamA}/cache/torch:/cache/torch:rw
+
+      # Hugging Face shared across all teams
+      - /data/shared/cache/hf:/cache/hf:rw
 
       # SSH: user keys (managed on host) and persistent host keys
       - /data/teams/${TEAM:-teamA}/ssh/authorized_keys:/home/dev/.ssh/authorized_keys:ro
