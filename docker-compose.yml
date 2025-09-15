@@ -1,63 +1,66 @@
+x-dev-base: &dev
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      BASE_IMAGE: "nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04"
+      DEV_UID: ${UID:-1000}
+      DEV_GID: ${GID:-1000}
+
+  # Run sshd as root to bind :22 in-container
+  user: "0:0"
+  restart: unless-stopped
+  shm_size: "8g"
+  security_opt: ["no-new-privileges:true"]
+
+  # Caches (assuming Dockerfile writes them to /etc/environment too)
+  environment:
+    HF_HOME: "/cache/hf"
+    HUGGINGFACE_HUB_CACHE: "/cache/hf"
+    # PIP_CACHE_DIR: "/cache/pip"
+    UV_CACHE_DIR: "/cache/uv"
+    # POETRY_CACHE_DIR: "/cache/poetry"
+    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+
+  # Shared volumes (host ownership must be 1000:1000 or fix at entrypoint)
+  volumes:
+    # Team-specific work dir is overridden per service below
+    - /data/cache/hf:/cache/hf:rw
+    # - /data/cache/pip:/cache/pip:rw
+    # - /data/cache/poetry:/cache/poetry:rw
+    - /data/cache/uv:/cache/uv:rw
+    - /data/ssh/authorized_keys:/home/dev/.ssh/authorized_keys:ro
+    - /data/ssh/hostkeys:/etc/ssh/keys:ro
+    - /data/work:/work:rw
+
 services:
-  team:
-    build:
-      context: .
-      args:
-        BASE_IMAGE: ${BASE_IMAGE:-nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04}
-        DEV_UID: ${DEV_UID:-1000}
-        DEV_GID: ${DEV_GID:-1000}
-    container_name: ${TEAM:-teamA}
-    # SSH into the container via the host (localhost only), then ProxyJump from your laptop
-    ports:
-      - "127.0.0.1:${SSH_PORT:-2222}:22"
+  team_asap:
+    <<: *dev
+    container_name: team_asap-dev-ssh
+    ports: ["2222:22"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0","1","2","3"]
+              capabilities: ["gpu"]
 
-    # GPUs & caches
+  team_test:
+    <<: *dev
+    container_name: team_test-dev-ssh
+    ports: ["2223:22"]
+    # Team B gets GPUs 1 and 2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["6","7"]
+              capabilities: ["gpu"]
     environment:
-      NVIDIA_VISIBLE_DEVICES: "${GPU_IDS:-0}"            # e.g. "0,1,2"
-      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-      PIP_CACHE_DIR: "/cache/pip"
-      UV_CACHE_DIR: "/cache/uv"
-      POETRY_CACHE_DIR: "/cache/poetry"
-      POETRY_VIRTUALENVS_IN_PROJECT: "true"
-      POETRY_VIRTUALENVS_PATH: "/cache/poetry/venvs"
-      # ML related
-      HF_HOME: "/cache/hf"
-      TRANSFORMERS_CACHE: "/cache/hf"
-      TORCH_HOME: "/cache/torch"
-
-    shm_size: "8g"
-    restart: unless-stopped
-    stop_grace_period: "60s"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop: ["ALL"]
-    cap_add: ["NET_BIND_SERVICE"]   # to bind port 22 inside the container
-
-    # Persistent state lives on /data so recreates are painless
-    volumes:
-      - /data/teams/${TEAM:-teamA}/work:/work:rw
-
-      # Caches (speed up installs / repeated runs)
-      - /data/teams/${TEAM:-teamA}/cache/pip:/cache/pip:rw
-      - /data/teams/${TEAM:-teamA}/cache/uv:/cache/uv:rw
-      - /data/teams/${TEAM:-teamA}/cache/poetry:/cache/poetry:rw
-      - /data/teams/${TEAM:-teamA}/cache/torch:/cache/torch:rw
-
-      # Hugging Face shared across all teams
-      - /data/shared/cache/hf:/cache/hf:rw
-
-      # SSH: user keys (managed on host) and persistent host keys
-      - /data/teams/${TEAM:-teamA}/ssh/authorized_keys:/home/dev/.ssh/authorized_keys:ro
-      - /data/teams/${TEAM:-teamA}/ssh/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
-      - /data/teams/${TEAM:-teamA}/ssh/ssh_host_ed25519_key.pub:/etc/ssh/ssh_host_ed25519_key.pub:ro
-
-    logging:
-      driver: json-file
-      options: { max-size: "50m", max-file: "3" }
-
-    healthcheck:
-      test: ["CMD","bash","-lc","pgrep -x sshd >/dev/null && nvidia-smi -L >/dev/null"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
+      NVIDIA_VISIBLE_DEVICES: "1,2"
+      CUDA_VISIBLE_DEVICES: "1,2"
+    depends_on:
+      - team_asap
 

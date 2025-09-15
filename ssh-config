@@ -1,11 +1,28 @@
-# ~/.ssh/config
-Host mipt_agents_lab
-  HostName
-  User user
+Host mipt_aigrant_cluster
+  HostName proxy-host
+  Port <proxy-port>
+  User mipt-user
+  IdentityFile ~/.ssh/id_rsa
+  IdentitiesOnly yes
 
-Host teamA
+Host mipt_aigrant_asap
   HostName 127.0.0.1
   Port 2222
   User dev
-  ProxyJump gpu-host
-  HostKeyAlias teamA
+  ProxyJump mipt_aigrant_cluster
+  IdentityFile ~/.ssh/mipt/rsa_asap
+  IdentitiesOnly yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 4
+  HostKeyAlias mipt_aigrant_asap
+
+Host mipt_aigrant_test
+  HostName 127.0.0.1
+  Port 2223
+  User dev
+  ProxyJump mipt_aigrant_cluster
+  IdentityFile ~/.ssh/mipt/rsa_asap
+  IdentitiesOnly yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 4
+  HostKeyAlias mipt_aigrant_test

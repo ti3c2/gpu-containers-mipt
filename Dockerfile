@@ -1,54 +1,54 @@
-# Build args you can override from compose
 ARG BASE_IMAGE=nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04
+FROM ${BASE_IMAGE}
+
 ARG DEV_UID=1000
 ARG DEV_GID=1000
 
-FROM ${BASE_IMAGE}
-
-# Base tools + sshd + tini + python (uv/poetry will manage most envs)
+# Basics packages
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    openssh-server ca-certificates curl git tini \
-    python3 python3-venv python3-pip build-essential pkg-config \
-    libffi-dev libssl-dev && \
-    rm -rf /var/lib/apt/lists/* && mkdir -p /var/run/sshd
+    ca-certificates curl git vim tini openssh-server python3 python3-venv python3-pip \
+    build-essential ninja-build \
+    && rm -rf /var/lib/apt/lists/* && mkdir -p /var/run/sshd
 
-# Create dev user matching host uid/gid (so bind mounts have sane ownership)
+# Prefer gcc
+ENV CC=/usr/bin/gcc CXX=/usr/bin/g++
+
+# Triton JIT cache
+ENV TRITON_CACHE_DIR=/cache/triton
+RUN mkdir -p /cache/triton && chown -R ${DEV_UID}:${DEV_GID} /cache/triton
+
+# Fast Python tool
+ENV UV_CACHE_DIR=/cache/uv
+RUN env UV_UNMANAGED_INSTALL=/usr/local/bin \
+    sh -c 'curl -LsSf https://astral.sh/uv/install.sh | sh' \
+ && chmod 0755 /usr/local/bin/uv
+
+# Create non-root login user "dev" with chosen UID/GID
 RUN groupadd -g ${DEV_GID} dev && useradd -m -u ${DEV_UID} -g ${DEV_GID} -s /bin/bash dev && \
     install -d -m 700 -o dev -g dev /home/dev/.ssh
 
-# Install uv (fast Python & package manager)
-ENV UV_CACHE_DIR=/cache/uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && ln -s /root/.local/bin/uv /usr/local/bin/uv
-
-# Install Poetry
-ENV POETRY_CACHE_DIR=/cache/poetry
-RUN curl -sSL https://install.python-poetry.org | python3 - && \
-    ln -s /root/.local/bin/poetry /usr/local/bin/poetry
-
-# Common caches (bind-mounted in compose)
-ENV PIP_CACHE_DIR=/cache/pip \
-    POETRY_VIRTUALENVS_PATH=/cache/poetry/venvs \
-    # Uncomment if you also want these:
-    # HF_HOME=/cache/hf \
-    # TRANSFORMERS_CACHE=/cache/hf \
-    # TORCH_HOME=/cache/torch \
-    PYTHONUNBUFFERED=1
-
-# Minimal hardening for sshd (keys only, no root login)
+# Harden sshd (keys only, no root login) + persistent host keys path
 RUN printf '%s\n' \
   'PasswordAuthentication no' \
   'PermitRootLogin no' \
   'PubkeyAuthentication yes' \
   'ChallengeResponseAuthentication no' \
-  'UsePAM no' \
+  'UsePAM yes' \
   'X11Forwarding no' \
-  'ClientAliveInterval 30' \
-  'ClientAliveCountMax 4' \
+  'AuthorizedKeysFile /home/dev/.ssh/authorized_keys' \
+  'HostKey /etc/ssh/keys/ssh_host_ed25519_key' \
+  'HostKey /etc/ssh/keys/ssh_host_rsa_key' \
   > /etc/ssh/sshd_config.d/10-team.conf
 
-WORKDIR /work
-EXPOSE 22
+# Env setup
+RUN cat >/etc/environment <<'EOF'
+HF_HOME=/cache/hf
+HUGGINGFACE_HUB_CACHE=/cache/hf
+PIP_CACHE_DIR=/cache/pip
+UV_CACHE_DIR=/cache/uv
+POETRY_CACHE_DIR=/cache/poetry
+EOF
 
-# Proper signal handling
-ENTRYPOINT ["/usr/bin/tini", "--"]
+WORKDIR /work
+ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["/usr/sbin/sshd","-D","-e"]
