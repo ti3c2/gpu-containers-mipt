@@ -1,0 +1,66 @@
+x-dev-base: &dev
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      BASE_IMAGE: "nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04"
+      DEV_UID: ${UID:-1000}
+      DEV_GID: ${GID:-1000}
+
+  # Run sshd as root to bind :22 in-container
+  user: "0:0"
+  restart: unless-stopped
+  shm_size: "8g"
+  security_opt: ["no-new-privileges:true"]
+
+  # Caches (assuming Dockerfile writes them to /etc/environment too)
+  environment:
+    HF_HOME: "/cache/hf"
+    HUGGINGFACE_HUB_CACHE: "/cache/hf"
+    # PIP_CACHE_DIR: "/cache/pip"
+    UV_CACHE_DIR: "/cache/uv"
+    # POETRY_CACHE_DIR: "/cache/poetry"
+    NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+
+  # Shared volumes (host ownership must be 1000:1000 or fix at entrypoint)
+  volumes:
+    # Team-specific work dir is overridden per service below
+    - /data/cache/hf:/cache/hf:rw
+    # - /data/cache/pip:/cache/pip:rw
+    # - /data/cache/poetry:/cache/poetry:rw
+    - /data/cache/uv:/cache/uv:rw
+    - /data/ssh/authorized_keys:/home/dev/.ssh/authorized_keys:ro
+    - /data/ssh/hostkeys:/etc/ssh/keys:ro
+    - /data/work:/work:rw
+
+services:
+  team_asap:
+    <<: *dev
+    container_name: team_asap-dev-ssh
+    ports: ["2222:22"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0","1","2","3"]
+              capabilities: ["gpu"]
+
+  team_test:
+    <<: *dev
+    container_name: team_test-dev-ssh
+    ports: ["2223:22"]
+    # Team B gets GPUs 1 and 2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["6","7"]
+              capabilities: ["gpu"]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "1,2"
+      CUDA_VISIBLE_DEVICES: "1,2"
+    depends_on:
+      - team_asap
+
