@@ -155,3 +155,36 @@ Key environment variables set in containers:
 - `UV_CACHE_DIR=/cache/uv` - UV package cache
 - `NVIDIA_DRIVER_CAPABILITIES=compute,utility` - GPU capabilities
 - `CUDA_VISIBLE_DEVICES` - GPU visibility control
+
+## Server Setup Hint
+
+Not verified but reflects the necessary commands 
+
+```
+# data & caches permissions setup
+sudo mkdir -p /data/{work,cache/{uv,hf},ssh/hostkeys}
+sudo chown -R mipt-user:mipt-user /data/{work,cache,ssh}
+chmod 755 /data /data/{work,cache,ssh}
+
+# SSH host keys (stable fingerprint)
+ssh-keygen -t ed25519 -N '' -f /data/ssh/hostkeys/ssh_host_ed25519_key
+chmod 600 /data/ssh/hostkeys/ssh_host_ed25519_key
+
+# Authorized keys (your login key)
+cat ~/.ssh/id_rsa.pub >> /data/ssh/authorized_keys   # or id_ed25519.pub
+chmod 700 /data/ssh && chmod 600 /data/ssh/authorized_keys
+
+# Permissions for volume directories
+sudo chown -R 1000:1000 /data/cache/uv /data/shared/hf /data/work
+sudo chmod -R 2775 /data/cache/uv /data/shared/hf /data/work
+
+# Clone repo and setup .env
+cd /data
+git clone https://github.com/ti3c2/gpu-containers-mipt/
+cd gpu-containers-mipt
+cp .env.example .env
+
+# Create containers
+docker compose up -d
+
+```
