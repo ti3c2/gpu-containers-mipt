@@ -70,7 +70,7 @@ docker compose up -d --force-recreate team_asap
 
 ```
 /data/
-├── cache/           # Shared package caches (mounted read-write)
+├── cache/          # Shared package caches (mounted read-write)
 │   ├── hf/         # HuggingFace models cache
 │   ├── pip/        # Python pip cache
 │   ├── poetry/     # Poetry dependency cache
