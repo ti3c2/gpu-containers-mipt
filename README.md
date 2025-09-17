@@ -166,7 +166,7 @@ sudo mkdir -p /data/{work,cache/{uv,hf},ssh/hostkeys}
 sudo chown -R mipt-user:mipt-user /data/{work,cache,ssh}
 chmod 755 /data /data/{work,cache,ssh}
 
-# SSH host keys (stable fingerprint)
+# SSH host keys
 ssh-keygen -t ed25519 -N '' -f /data/ssh/hostkeys/ssh_host_ed25519_key
 chmod 600 /data/ssh/hostkeys/ssh_host_ed25519_key
 
