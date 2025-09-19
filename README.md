@@ -24,17 +24,32 @@ docker compose down
 
 1. Add a new service in `docker-compose.yml`:
 ```yaml
-team_newteam:
-  <<: *dev
-  container_name: team_newteam-dev-ssh
-  ports: ["2224:22"]  # Use next available port
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            device_ids: ["4","5"]  # Assign specific GPUs
-            capabilities: ["gpu"]
+services:
+  team_oldteam:
+    ...
+
+  team_newteam:
+    <<: *dev
+    container_name: team_newteam-dev-ssh
+    ports: ["2224:22"]  # Use next available port
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["4","5"]  # Assign specific GPUs
+              capabilities: ["gpu"]
+    depens_on:        # Add dependency for container's ip address reproducibility
+      - team_oldteam
+    volumes:
+        # Volumes shared across all teams
+        - /data/cache/hf:/cache/hf:rw
+        - /data/cache/uv:/cache/uv:rw
+        - /data/ssh/authorized_keys:/home/dev/.ssh/authorized_keys:ro
+        - /data/ssh/hostkeys:/etc/ssh/keys:ro
+        # Team-specific volumes
+        - /data/work/team_newteam/work:/work:rw # Mount /work volume with team name
+
 ```
 
 2. Add SSH config entry in `ssh-config`:
@@ -57,7 +72,7 @@ deploy:
     reservations:
       devices:
         - driver: nvidia
-          device_ids: ["0","1","2","3"] 
+          device_ids: ["0","1","2","3"]
           capabilities: ["gpu"]
 ```
 
@@ -81,8 +96,8 @@ docker compose up -d --force-recreate team_asap
 │   ├── authorized_keys  # Public keys for access
 │   └── hostkeys/   # SSH host keys
 └── work/           # Team workspaces (mounted read-write)
-    ├── team_name_1/
-    └── team_name_2/
+    ├── team_name_1/work
+    └── team_name_2/work
 ```
 
 ## GPU Resource Management
@@ -158,7 +173,7 @@ Key environment variables set in containers:
 
 ## Server Setup Hint
 
-Not verified but reflects the necessary commands 
+Not verified but reflects the necessary commands
 
 ```
 # data & caches permissions setup
