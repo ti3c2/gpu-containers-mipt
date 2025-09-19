@@ -1,5 +1,5 @@
 Host mipt_aigrant_cluster
-  HostName proxy-host
+  HostName <proxy-host>
   Port <proxy-port>
   User mipt-user
   IdentityFile ~/.ssh/id_rsa
@@ -15,6 +15,9 @@ Host mipt_aigrant_asap
   ServerAliveInterval 30
   ServerAliveCountMax 4
   HostKeyAlias mipt_aigrant_asap
+  # If you want to specify port forwarding here
+  # Get the exact host ip address by running `hostname -I` inside the container
+  LocalForward localhost:8000 172.18.0.2:8000
 
 Host mipt_aigrant_test
   HostName 127.0.0.1
@@ -26,3 +29,4 @@ Host mipt_aigrant_test
   ServerAliveInterval 30
   ServerAliveCountMax 4
   HostKeyAlias mipt_aigrant_test
+  LocalForward localhost:9000 172.18.0.2:9000

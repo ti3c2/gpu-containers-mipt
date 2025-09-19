@@ -128,8 +128,23 @@ docker compose logs team_asap
 
 ### Connection Setup
 1. Copy the `ssh-config` to your `~/.ssh/config`
-2. Update proxy host details and key paths
+2. Update proxy host details and key paths. Add port forwarding if necessary.
 3. Connect: `ssh mipt_aigrant_asap`
+
+If you did not specify port forwarding, run this in the terminal:
+
+```sh
+ssh -N \
+      -L localhost:8000:172.18.0.2:8000 \
+      -L localhost:8001:172.18.0.2:8001 \
+      mipt_aigrant_asap
+```
+
+Make sure you use the right address instead of `172.18.0.2`. Find it by running the following in the container:
+
+```sh
+hostname -I
+```
 
 ### Key Management
 - Team keys go in `/data/ssh/authorized_keys`
@@ -170,6 +185,15 @@ Key environment variables set in containers:
 - `UV_CACHE_DIR=/cache/uv` - UV package cache
 - `NVIDIA_DRIVER_CAPABILITIES=compute,utility` - GPU capabilities
 - `CUDA_VISIBLE_DEVICES` - GPU visibility control
+
+## vLLM
+When you run or anything that needs to be forwarded to your localhost, make sure to specify a host for the service. For example:
+
+```
+vllm serve Qwen/Qwen2.5-7B-Instruct \
+    --host $(hostname -I) \
+    --port 8000
+```
 
 ## Server Setup Hint
 
