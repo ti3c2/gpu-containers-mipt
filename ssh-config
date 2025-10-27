@@ -2,7 +2,7 @@ Host mipt_aigrant_cluster
   HostName <proxy-host>
   Port <proxy-port>
   User mipt-user
-  IdentityFile ~/.ssh/id_rsa
+  IdentityFile ~/.ssh/mipt/rsa_asap
   IdentitiesOnly yes
 
 Host mipt_aigrant_asap
